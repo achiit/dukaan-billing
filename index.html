@@ -1,0 +1,279 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant Billing System</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;margin:0;background:#f2f4f7;color:#202530}
+header{background:#172554;color:white;padding:18px;text-align:center}
+header h1{margin:0;font-size:24px}
+nav{display:flex;gap:8px;padding:10px;overflow:auto;background:white;position:sticky;top:0}
+button{border:0;border-radius:7px;padding:10px 13px;background:#2563eb;color:white;cursor:pointer;font-size:14px}
+button.secondary{background:#475569}
+button.danger{background:#dc2626}
+button.green{background:#15803d}
+main{max-width:1100px;margin:auto;padding:14px}
+.panel{background:white;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #0000000a}
+h2{font-size:19px;margin-top:0}
+input,select{padding:11px;border:1px solid #cbd5e1;border-radius:7px;width:100%;margin:5px 0 10px;font-size:15px}
+.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:10px}
+.product{border:1px solid #dbe2ea;border-radius:10px;padding:12px;background:#fff}
+.product strong{display:block;margin-bottom:8px}
+.product button{width:100%}
+table{width:100%;border-collapse:collapse}
+th,td{border-bottom:1px solid #e2e8f0;padding:9px 5px;text-align:left;font-size:14px}
+.total{text-align:right;font-size:18px;font-weight:bold;margin:14px 0}
+.muted{color:#64748b;font-size:13px}
+#logoPreview{max-width:100px;max-height:70px;object-fit:contain}
+.hidden{display:none}
+@media(max-width:600px){.row{grid-template-columns:1fr}main{padding:8px}.panel{padding:12px}header h1{font-size:20px}th,td{font-size:12px;padding:7px 3px}}
+@media print{
+body{background:white}
+header,nav,.no-print,#productsPanel,#settingsPanel,#historyPanel,#salesPanel{display:none!important}
+main{padding:0;max-width:none}
+.panel{box-shadow:none;border-radius:0;padding:0}
+#billingPanel{display:block!important}
+#billActions{display:none!important}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="headerShop">My Restaurant</h1>
+  <p style="margin:7px 0 0">Restaurant Billing System</p>
+</header>
+
+<nav class="no-print">
+  <button onclick="showPage('billingPanel')">Billing</button>
+  <button class="secondary" onclick="showPage('productsPanel')">Products</button>
+  <button class="secondary" onclick="showPage('historyPanel');renderHistory()">Bill History</button>
+  <button class="secondary" onclick="showPage('salesPanel');renderSales()">Daily Sales</button>
+  <button class="secondary" onclick="showPage('settingsPanel')">Shop Settings</button>
+</nav>
+
+<main>
+<section class="panel" id="billingPanel">
+  <h2>New Bill</h2>
+  <div class="row no-print">
+    <div><label>Customer name (optional)</label><input id="customer" placeholder="Customer name"></div>
+    <div><label>Discount (₹)</label><input id="discount" type="number" min="0" value="0" oninput="renderCart()"></div>
+  </div>
+  <h3>Products</h3>
+  <div id="products" class="products"></div>
+  <h3>Current Bill</h3>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Item</th><th>Price</th><th>Qty</th><th>Total</th><th class="no-print">Remove</th></tr></thead>
+      <tbody id="cartRows"></tbody>
+    </table>
+  </div>
+  <div class="total" id="grandTotal">Total: ₹0.00</div>
+  <div class="no-print" id="billActions">
+    <button class="green" onclick="saveBill()">Save Bill</button>
+    <button onclick="printBill()">Print Bill</button>
+    <button class="secondary" onclick="clearCart()">New / Clear</button>
+  </div>
+  <p class="muted">Bill save karne ke baad hi history aur daily sales mein record aayega.</p>
+</section>
+
+<section class="panel hidden" id="productsPanel">
+  <h2>Manage Products</h2>
+  <div class="row">
+    <div><label>Product name</label><input id="pName" placeholder="Veg Chowmein"></div>
+    <div><label>Price (₹)</label><input id="pPrice" type="number" min="0" placeholder="80"></div>
+  </div>
+  <button onclick="addProduct()">Add Product</button>
+  <div id="productManagement" style="margin-top:15px"></div>
+</section>
+
+<section class="panel hidden" id="historyPanel">
+  <h2>Bill History</h2>
+  <div id="history"></div>
+</section>
+
+<section class="panel hidden" id="salesPanel">
+  <h2>Daily Sales</h2>
+  <label>Select date</label><input id="salesDate" type="date" onchange="renderSales()">
+  <div id="salesSummary"></div>
+</section>
+
+<section class="panel hidden" id="settingsPanel">
+  <h2>Shop Settings</h2>
+  <label>Shop / Restaurant name</label><input id="shopName" placeholder="Your shop name">
+  <label>Phone number</label><input id="shopPhone" placeholder="Mobile number">
+  <label>Shop address</label><input id="shopAddress" placeholder="Shop address">
+  <label>Bill footer</label><input id="shopFooter" placeholder="Thank you! Visit again.">
+  <label>Shop logo</label><input type="file" id="logoFile" accept="image/*">
+  <img id="logoPreview" alt="Shop logo" class="hidden">
+  <br><button onclick="saveSettings()">Save Shop Settings</button>
+  <hr>
+  <h3>Backup</h3>
+  <button class="secondary" onclick="exportData()">Download Data Backup</button>
+  <label>Restore backup file</label><input type="file" id="backupFile" accept=".json">
+  <button class="secondary" onclick="importData()">Restore Data</button>
+  <p class="muted">Data isi browser/device mein save hota hai. Doosre device par automatically sync nahi hota.</p>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const today = () => new Date().toISOString().slice(0,10);
+let products = JSON.parse(localStorage.getItem('rb_products') || 'null') || [
+ {id:1,name:'Veg Chowmein',price:80},
+ {id:2,name:'Veg Burger',price:60},
+ {id:3,name:'French Fries',price:70},
+ {id:4,name:'Cold Drink',price:40}
+];
+let bills = JSON.parse(localStorage.getItem('rb_bills') || '[]');
+let settings = JSON.parse(localStorage.getItem('rb_settings') || '{}');
+let cart = [];
+let logoData = settings.logo || '';
+
+function persist(){
+ localStorage.setItem('rb_products',JSON.stringify(products));
+ localStorage.setItem('rb_bills',JSON.stringify(bills));
+ localStorage.setItem('rb_settings',JSON.stringify(settings));
+}
+function money(n){return '₹'+Number(n||0).toFixed(2)}
+function showPage(id){
+ document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
+ $(id).classList.remove('hidden');
+}
+function renderProducts(){
+ $('products').innerHTML=products.map(p=>`
+ <div class="product"><strong>${esc(p.name)}</strong><div>${money(p.price)}</div>
+ <button style="margin-top:9px" onclick="addToCart(${p.id})">Add to Bill</button></div>`).join('');
+ $('productManagement').innerHTML=products.length?products.map(p=>`
+ <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid #ddd;padding:10px 0">
+ <span>${esc(p.name)} — ${money(p.price)}</span>
+ <button class="danger" onclick="deleteProduct(${p.id})">Delete</button></div>`).join(''):'No products added.';
+}
+function addProduct(){
+ const name=$('pName').value.trim(), price=Number($('pPrice').value);
+ if(!name||$('pPrice').value===''||!Number.isFinite(price)||price<0){alert('Product name aur valid price bharo.');return}
+ products.push({id:Date.now(),name,price});
+ $('pName').value='';$('pPrice').value='';
+ persist();renderProducts();
+}
+function deleteProduct(id){
+ if(confirm('Is product ko delete karein?')){products=products.filter(p=>p.id!==id);persist();renderProducts()}
+}
+function addToCart(id){
+ const p=products.find(x=>x.id===id);if(!p)return;
+ const line=cart.find(x=>x.id===id);
+ if(line)line.qty++;else cart.push({...p,qty:1});
+ renderCart();
+}
+function changeQty(id,value){
+ const line=cart.find(x=>x.id===id);if(!line)return;
+ line.qty=Math.max(1,parseInt(value)||1);renderCart();
+}
+function removeCart(id){cart=cart.filter(x=>x.id!==id);renderCart()}
+function subtotal(){return cart.reduce((s,x)=>s+x.price*x.qty,0)}
+function discountValue(){return Math.min(subtotal(),Math.max(0,Number($('discount').value)||0))}
+function renderCart(){
+ $('cartRows').innerHTML=cart.map(x=>`
+ <tr><td>${esc(x.name)}</td><td>${money(x.price)}</td>
+ <td><input class="no-print" aria-label="Quantity" style="width:65px;margin:0;padding:5px" type="number" min="1" value="${x.qty}" onchange="changeQty(${x.id},this.value)">
+ <span class="hidden">${x.qty}</span></td><td>${money(x.price*x.qty)}</td>
+ <td class="no-print"><button class="danger" onclick="removeCart(${x.id})">X</button></td></tr>`).join('');
+ const d=discountValue();
+ $('grandTotal').innerHTML=`Subtotal: ${money(subtotal())}<br>Discount: ${money(d)}<br><span style="font-size:23px">Total: ${money(subtotal()-d)}</span>`;
+}
+function clearCart(){
+ if(cart.length&&!confirm('Current bill clear karein?'))return;
+ cart=[];$('customer').value='';$('discount').value=0;renderCart();
+}
+function billMarkup(b){
+ return `<div style="text-align:center;font-family:Arial">
+ ${b.logo?`<img src="${b.logo}" style="max-width:100px;max-height:70px;display:block;margin:auto">`:''}
+ <h2 style="margin:5px 0">${esc(b.shopName||'My Restaurant')}</h2>
+ <div>${esc(b.shopAddress||'')}</div><div>${esc(b.shopPhone||'')}</div>
+ <hr><div>Bill: ${esc(b.id)}<br>Date: ${esc(b.date)} ${esc(b.time)}<br>Customer: ${esc(b.customer||'Walk-in')}</div><hr>
+ </div>
+ <table style="width:100%;border-collapse:collapse">
+ <thead><tr><th style="text-align:left">Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+ <tbody>${b.items.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.price)}</td><td>${money(x.price*x.qty)}</td></tr>`).join('')}</tbody>
+ </table>
+ <hr><div style="text-align:right">Subtotal: ${money(b.subtotal)}<br>Discount: ${money(b.discount)}<h3>Total: ${money(b.total)}</h3></div>
+ <div style="text-align:center;margin-top:18px">${esc(b.footer||'Thank you! Visit again.')}</div>`;
+}
+function printBill(){
+ if(!cart.length){alert('Pehle bill mein product add karo.');return}
+ const b=makeBill();
+ const w=window.open('','_blank','width=400,height=650');
+ if(!w){alert('Print ke liye browser pop-up allow karo.');return}
+ w.document.write(`<!DOCTYPE html><html><head><title>Bill</title><meta name="viewport" content="width=device-width"><style>body{font:12px Arial;margin:8px}table{font-size:12px}th,td{padding:5px 2px;border-bottom:1px dashed #aaa} @page{margin:4mm}</style></head><body>${billMarkup(b)}<script>window.onload=()=>{window.print()}<\/script></body></html>`);
+ w.document.close();
+}
+function makeBill(){
+ const now=new Date();
+ return {id:'B'+now.getTime(),date:today(),time:now.toLocaleTimeString(),customer:$('customer').value.trim(),
+ items:cart.map(x=>({...x})),subtotal:subtotal(),discount:discountValue(),total:subtotal()-discountValue(),
+ shopName:settings.name||'My Restaurant',shopPhone:settings.phone||'',shopAddress:settings.address||'',footer:settings.footer||'Thank you! Visit again.',logo:logoData};
+}
+function saveBill(){
+ if(!cart.length){alert('Bill mein pehle product add karo.');return}
+ const b=makeBill();bills.unshift(b);persist();
+ alert('Bill save ho gaya. Bill number: '+b.id);
+ cart=[];$('customer').value='';$('discount').value=0;renderCart();
+}
+function renderHistory(){
+ $('history').innerHTML=bills.length?bills.map(b=>`
+ <div style="border-bottom:1px solid #ddd;padding:12px 0">
+ <strong>${esc(b.id)}</strong> — ${esc(b.date)} — ${money(b.total)}
+ <div class="muted">${esc(b.customer||'Walk-in')} · ${b.items.length} item type(s)</div>
+ <button onclick="reprint('${b.id}')">Reprint</button>
+ <button class="danger" onclick="deleteBill('${b.id}')">Delete</button></div>`).join(''):'Abhi koi saved bill nahi hai.';
+}
+function reprint(id){
+ const b=bills.find(x=>x.id===id);if(!b)return;
+ const w=window.open('','_blank','width=400,height=650');if(!w){alert('Pop-up allow karo.');return}
+ w.document.write(`<!DOCTYPE html><html><head><title>Bill</title><style>body{font:12px Arial;margin:8px}th,td{padding:5px 2px;border-bottom:1px dashed #aaa}@page{margin:4mm}</style></head><body>${billMarkup(b)}<script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();
+}
+function deleteBill(id){
+ if(confirm('Is saved bill ko delete karein?')){bills=bills.filter(b=>b.id!==id);persist();renderHistory();renderSales()}
+}
+function renderSales(){
+ const d=$('salesDate').value||today();$('salesDate').value=d;
+ const list=bills.filter(b=>b.date===d),sum=list.reduce((s,b)=>s+b.total,0);
+ $('salesSummary').innerHTML=`<div class="row"><div class="panel"><div class="muted">Total Bills</div><h2>${list.length}</h2></div><div class="panel"><div class="muted">Total Sales</div><h2>${money(sum)}</h2></div></div>`+
+ (list.length?list.map(b=>`<p>${esc(b.time)} — ${esc(b.id)} — ${money(b.total)}</p>`).join(''):'<p>Is date par koi bill nahi hai.</p>');
+}
+function saveSettings(){
+ settings={...settings,name:$('shopName').value.trim(),phone:$('shopPhone').value.trim(),address:$('shopAddress').value.trim(),footer:$('shopFooter').value.trim(),logo:logoData};
+ persist();updateShop();alert('Shop settings save ho gayi.');
+}
+function updateShop(){
+ $('headerShop').textContent=settings.name||'My Restaurant';
+ $('shopName').value=settings.name||'';$('shopPhone').value=settings.phone||'';
+ $('shopAddress').value=settings.address||'';$('shopFooter').value=settings.footer||'';
+ if(logoData){$('logoPreview').src=logoData;$('logoPreview').classList.remove('hidden')}
+}
+$('logoFile').addEventListener('change',e=>{
+ const f=e.target.files[0];if(!f)return;
+ const r=new FileReader();r.onload=()=>{logoData=r.result;$('logoPreview').src=logoData;$('logoPreview').classList.remove('hidden')};r.readAsDataURL(f);
+});
+function exportData(){
+ const data={products,bills,settings};
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+ a.download='restaurant-backup.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importData(){
+ const f=$('backupFile').files[0];if(!f){alert('Backup JSON file select karo.');return}
+ const r=new FileReader();r.onload=()=>{
+ try{const d=JSON.parse(r.result);if(!Array.isArray(d.products)||!Array.isArray(d.bills))throw Error();
+ products=d.products;bills=d.bills;settings=d.settings||{};logoData=settings.logo||'';persist();renderProducts();renderHistory();renderSales();updateShop();alert('Backup restore ho gaya.')
+ }catch(e){alert('Backup file valid nahi hai.')}
+ };r.readAsText(f);
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+$('salesDate').value=today();
+renderProducts();renderCart();updateShop();renderHistory();renderSales();
+</script>
+</body>
+</html>
